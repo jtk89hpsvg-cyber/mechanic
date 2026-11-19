@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1317" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Banco Motore">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Banco Motore</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: titolo e modalità in alto, messaggio guida, sezione del motore al centro (zoom e trascinamento), vassoio dei pezzi o comandi della prova in basso. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#1b2127; --muted:#5d6975; --line:#d3d9df;
+  --stage:#dde3e9; --accent:#0a62c9; --accent-ink:#ffffff; --ok:#1c7f46; --bad:#c62f2a; --warn:#b26a00;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1317; --panel:#1a2026; --ink:#e8edf1; --muted:#98a4af; --line:#2c353d;
+  --stage:#141a20; --accent:#4c9bff; --accent-ink:#06121f; --ok:#4cc27d; --bad:#ff6b63; --warn:#f0b04a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1317; --panel:#1a2026; --ink:#e8edf1; --muted:#98a4af; --line:#2c353d;
+  --stage:#141a20; --accent:#4c9bff; --accent-ink:#06121f; --ok:#4cc27d; --bad:#ff6b63; --warn:#f0b04a; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--bg);color:var(--ink);font:14px/1.4 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+.top{display:flex;align-items:center;gap:8px}
+.top h1{flex:1;margin:0;font-size:18px;letter-spacing:-.01em}
+.seg{display:flex;gap:6px}
+.seg .btn{flex:1}
+.btn{min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{min-height:38px;padding:0 12px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.msg{padding:10px 12px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;background:var(--panel);font-size:13.5px;line-height:1.4;min-height:2.8em;max-height:9.5em;overflow:auto}
+.msg b{font-weight:700}
+.msg.ok{border-left-color:var(--ok)} .msg.bad{border-left-color:var(--bad)} .msg.warn{border-left-color:var(--warn)}
+.msg small{display:block;color:var(--muted);margin-top:4px}
+.stage{position:relative;flex:1;min-height:150px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--stage)}
+#cv{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.zoom{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px}
+.zoom .btn{width:40px;min-height:40px;padding:0;font-size:20px}
+.bottom{display:flex;flex-direction:column;gap:8px}
+.tray{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.tile{flex:0 0 auto;width:92px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer;scroll-snap-align:start}
+.tile svg{width:64px;height:56px}
+.tile span{font-size:11.5px;line-height:1.15;text-align:center}
+.tile.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tile:disabled{opacity:.4}
+.act{display:flex;gap:8px;flex-wrap:wrap}
+.act .grow{flex:1}
+.run{display:flex;flex-direction:column;gap:8px}
+.run label{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.run input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.run .val{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tl{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;font-size:11px;text-align:center}
+.tl div{padding:5px 2px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+.tl div.cur{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{flex:1}
+.tl div.cur2{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent);color:var(--ink);font-weight:700}
+.fire{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.fire .dot{min-width:24px;height:24px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.fire .dot.on{background:#ff8a3d;border-color:#ff8a3d;color:#1b1209;font-weight:700}
+.engbtn{width:100%;justify-content:space-between}
+.engbtn span{overflow:hidden;text-overflow:ellipsis}
+.pick{position:fixed;inset:0;z-index:30;background:rgba(8,12,16,.7);display:flex;align-items:flex-end;justify-content:center}
+.pcard{width:100%;max-width:640px;max-height:86%;overflow:auto;box-sizing:border-box;background:var(--panel);border-radius:16px 16px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.pcard h2{margin:0 0 4px;font-size:17px}
+.erow{display:flex;gap:12px;align-items:center;text-align:left;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer}
+.erow.cur{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.erow svg{flex:none;width:56px;height:46px}
+.erow b{display:block;font-size:14px}
+.erow small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.fire .dot.s0{background:#6fb7ff;border-color:#6fb7ff;color:#08202f}
+.fire .dot.s1{background:#ffd76a;border-color:#ffd76a;color:#2b2000}
+.fire .dot.s2{background:#ff8a3d;border-color:#ff8a3d;color:#1b1209;font-weight:700}
+.fire .dot.s3{background:#9aa0a6;border-color:#9aa0a6;color:#101214}
+.fire .dot.shown{box-shadow:0 0 0 2px var(--accent)}
+.engbtn span:first-child{text-align:left}
+.stage{--wall:#c9d0d6;--hole:#aab3bb;--benchA:#9a7b57;--benchB:#7d6244;--benchEdge:#5b452e;--tool:#6d7781}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stage{--wall:#232b32;--hole:#141a1f;--benchA:#5c4a37;--benchB:#46372a;--benchEdge:#2e2419;--tool:#46525d}}
+:root[data-theme="dark"] .stage{--wall:#232b32;--hole:#141a1f;--benchA:#5c4a37;--benchB:#46372a;--benchEdge:#2e2419;--tool:#46525d}
+.stage{background:radial-gradient(circle,var(--hole) 1.6px,transparent 2px) 0 0/22px 22px,var(--wall)}
+.bench{position:absolute;left:0;right:0;bottom:0;height:24%;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 118px,rgba(0,0,0,.2) 118px 120px,rgba(255,255,255,.08) 120px 121px),repeating-linear-gradient(0deg,rgba(0,0,0,.07) 0 2px,transparent 2px 9px),linear-gradient(var(--benchA),var(--benchB));border-top:8px solid #6c7782;box-shadow:inset 0 3px 0 rgba(255,255,255,.35),0 -12px 20px rgba(0,0,0,.22)}
+.bench::after{content:"";position:absolute;left:0;right:0;top:0;height:46px;background:linear-gradient(rgba(255,255,255,.14),transparent)}
+.stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 45% at 50% -8%,rgba(255,244,200,.55),transparent 70%)}
+:root[data-theme="dark"] .stage::before{background:radial-gradient(ellipse 60% 45% at 50% -8%,rgba(255,220,140,.16),transparent 70%)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stage::before{background:radial-gradient(ellipse 60% 45% at 50% -8%,rgba(255,220,140,.16),transparent 70%)}}
+.dec{position:absolute;bottom:calc(24% - 4px);pointer-events:none}
+.tach{position:absolute;right:8px;top:8px;width:104px;height:104px;z-index:2;pointer-events:none;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))}
+
+.tools{position:absolute;left:10px;top:8px;width:190px;height:auto;pointer-events:none;opacity:.9}
+#cv{position:relative;z-index:1}.zoom{z-index:2}#eng{filter:drop-shadow(0 6px 8px rgba(0,0,0,.35))}
+</style>
+</head>
+<body>
+
+<div class="top"><h1>Banco Motore</h1><button id="bReset" class="btn sm" aria-label="Ricomincia da capo">Ricomincia</button></div>
+<button id="bEng" class="btn engbtn" aria-label="Scegli il motore"><span id="engName">Motore</span><span aria-hidden="true">▾</span></button>
+<div class="seg" id="modes">
+  <button class="btn on" data-m="guided">Guidato</button>
+  <button class="btn" data-m="challenge">Sfida</button>
+  <button class="btn" data-m="prova">Prova</button>
+</div>
+<div id="msg" class="msg"></div>
+<div class="stage" id="stage">
+  <div class="bench" aria-hidden="true"></div>
+  <svg class="dec" style="left:10px;width:84px" viewBox="0 0 84 60" aria-hidden="true"><rect x="2" y="18" width="80" height="40" rx="5" fill="#c43b2f" stroke="#7a1f18" stroke-width="2"/><rect x="2" y="30" width="80" height="4" fill="#7a1f18"/><path d="M28 18V10Q28 6 32 6H52Q56 6 56 10V18" fill="none" stroke="#2a323b" stroke-width="4"/><rect x="38" y="28" width="8" height="9" rx="2" fill="#d9dfe5" stroke="#2a323b"/></svg>
+  <svg class="dec" style="left:104px;width:34px" viewBox="0 0 34 50" aria-hidden="true"><rect x="4" y="16" width="22" height="32" rx="3" fill="#e0b04a" stroke="#7a5a12" stroke-width="2"/><path d="M26 22H33L28 8H20" fill="none" stroke="#7a5a12" stroke-width="3"/><rect x="9" y="22" width="12" height="12" fill="#fff6d0" opacity=".8"/></svg>
+  <svg class="tools" viewBox="0 0 190 60" aria-hidden="true" style="fill:var(--tool)"><g transform="rotate(-30 20 30)"><rect x="8" y="26" width="64" height="8" rx="4"/><circle cx="12" cy="30" r="10"/><circle cx="12" cy="30" r="4" style="fill:var(--wall)"/></g><g transform="translate(86 6)"><rect x="0" y="4" width="34" height="14" rx="3"/><rect x="14" y="16" width="7" height="38" rx="2"/></g><g transform="translate(134 6)"><rect x="0" y="0" width="8" height="40" rx="2"/><rect x="-3" y="38" width="14" height="16" rx="5"/></g><g transform="translate(160 8)"><rect x="0" y="0" width="6" height="30"/><rect x="-4" y="28" width="14" height="22" rx="5"/></g></svg>
+  <svg id="tach" class="tach" viewBox="0 0 120 120" hidden role="img" aria-label="Contagiri"><circle cx="60" cy="60" r="58" fill="#2a323b"/><circle cx="60" cy="60" r="54" fill="#12171c"/><line x1="21.9" y1="82.0" x2="15.0" y2="86.0" stroke="#e8edf1" stroke-width="2.2"/><text x="29.7" y="80.5" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">0</text><line x1="14.6" y1="72.2" x2="9.8" y2="73.5" stroke="#e8edf1" stroke-width="1.2"/><line x1="16.0" y1="60.0" x2="8.0" y2="60.0" stroke="#e8edf1" stroke-width="2.2"/><text x="25.0" y="63.0" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">1</text><line x1="14.6" y1="47.8" x2="9.8" y2="46.5" stroke="#e8edf1" stroke-width="1.2"/><line x1="21.9" y1="38.0" x2="15.0" y2="34.0" stroke="#e8edf1" stroke-width="2.2"/><text x="29.7" y="45.5" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">2</text><line x1="26.8" y1="26.8" x2="23.2" y2="23.2" stroke="#e8edf1" stroke-width="1.2"/><line x1="38.0" y1="21.9" x2="34.0" y2="15.0" stroke="#e8edf1" stroke-width="2.2"/><text x="42.5" y="32.7" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">3</text><line x1="47.8" y1="14.6" x2="46.5" y2="9.8" stroke="#e8edf1" stroke-width="1.2"/><line x1="60.0" y1="16.0" x2="60.0" y2="8.0" stroke="#e8edf1" stroke-width="2.2"/><text x="60.0" y="28.0" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">4</text><line x1="72.2" y1="14.6" x2="73.5" y2="9.8" stroke="#e8edf1" stroke-width="1.2"/><line x1="82.0" y1="21.9" x2="86.0" y2="15.0" stroke="#e8edf1" stroke-width="2.2"/><text x="77.5" y="32.7" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">5</text><line x1="93.2" y1="26.8" x2="96.8" y2="23.2" stroke="#e8edf1" stroke-width="1.2"/><line x1="98.1" y1="38.0" x2="105.0" y2="34.0" stroke="#e8edf1" stroke-width="2.2"/><text x="90.3" y="45.5" text-anchor="middle" font-size="9" fill="#e8edf1" font-family="Inter,sans-serif">6</text><line x1="105.4" y1="47.8" x2="110.2" y2="46.5" stroke="#ff5b4d" stroke-width="1.2"/><line x1="104.0" y1="60.0" x2="112.0" y2="60.0" stroke="#ff5b4d" stroke-width="2.2"/><text x="95.0" y="63.0" text-anchor="middle" font-size="9" fill="#ff5b4d" font-family="Inter,sans-serif">7</text><line x1="105.4" y1="72.2" x2="110.2" y2="73.5" stroke="#ff5b4d" stroke-width="1.2"/><line x1="98.1" y1="82.0" x2="105.0" y2="86.0" stroke="#ff5b4d" stroke-width="2.2"/><text x="90.3" y="80.5" text-anchor="middle" font-size="9" fill="#ff5b4d" font-family="Inter,sans-serif">8</text><text x="60" y="84" text-anchor="middle" font-size="7" fill="#98a4af" font-family="Inter,sans-serif">x1000 giri/min</text><text id="trpm" x="60" y="98" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="Inter,sans-serif">0</text><g id="tn" transform="rotate(-120 60 60)"><path d="M58.5 66L60 12L61.5 66Z" fill="#ff5b4d"/></g><circle cx="60" cy="60" r="5" fill="#cdd5dc"/></svg>
+  <svg id="cv" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sezione di un motore">
+    <g id="world"><g id="stand"></g><g id="eng"></g></g>
+  </svg>
+  <div class="zoom"><button class="btn" id="zIn" aria-label="Ingrandisci">+</button><button class="btn" id="zOut" aria-label="Riduci">−</button><button class="btn" id="zFit" aria-label="Adatta" style="font-size:13px">Tutto</button></div>
+</div>
+<div id="pick" class="pick" hidden><div class="pcard"><h2>Scegli il motore</h2><div id="plist" style="display:flex;flex-direction:column;gap:8px"></div><button id="pX" class="btn">Chiudi</button></div></div>
+<div class="bottom">
+  <div id="assembly">
+    <div id="tray" class="tray"></div>
+    <div id="act" class="act"></div>
+  </div>
+  <div id="run" class="run" hidden>
+    <div class="tl" id="tl"><div>Aspirazione</div><div>Compressione</div><div>Scoppio</div><div>Scarico</div></div>
+    <div class="fire" id="fire" hidden></div>
+    <label for="an">Angolo<input id="an" type="range" min="0" max="720" step="1" value="0"><span class="val" id="anv">0°</span></label>
+    <label for="sp">Velocità<input id="sp" type="range" min="0" max="100" step="1" value="25"><span class="val" id="spv">Lenta</span></label>
+    <div class="row"><button id="bPlay" class="btn on">Avvia</button><button id="bAll" class="btn">Monta tutto</button><button id="bClear" class="btn">Smonta</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var CX=300,CY=580,R=48,L=150,WT=382,ROOF=332;
+var $=function(i){return document.getElementById(i);};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function mix(a,b,k){var pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);function ch(s){return Math.round(((pa>>s)&255)*(1-k)+((pb>>s)&255)*k);}return 'rgb('+ch(16)+','+ch(8)+','+ch(0)+')';}
+function mod(a,m){return ((a%m)+m)%m;}
+
+/* ---------- modelli di pezzo (comuni a tutti i motori) ---------- */
+var TPL=[
+ {id:'basamento',name:'Basamento',need:[],bb:[190,474,220,232],reg:[196,480,208,222],
+  what:'È il corpo inferiore del motore: ospita l\'albero motore e regge tutti gli altri pezzi.',where:'In basso: è la scatola che contiene l\'albero motore.',why:''},
+ {id:'albero',name:'Albero motore',need:['basamento'],bb:[236,500,128,150],reg:[230,510,140,140],
+  what:'Trasforma il moto su e giù dei pistoni in rotazione. I contrappesi bilanciano le vibrazioni.',where:'Al centro del basamento.',why:'L\'albero poggia sul basamento.'},
+ {id:'biella',name:'Biella',need:['albero'],bb:[276,375,48,170],reg:[276,390,48,150],
+  what:'Collega il pistone all\'albero motore e gli trasmette la spinta.',where:'Parte dal perno dell\'albero motore e sale verso il cilindro.',why:'La biella si aggancia al perno dell\'albero motore.'},
+ {id:'pistone',name:'Pistone',need:['biella'],bb:[240,344,120,76],reg:[244,348,112,68],
+  what:'Sale e scende nel cilindro: comprime la miscela e riceve la spinta dello scoppio.',where:'In cima alla biella, dentro la zona del cilindro.',why:'Il pistone si collega alla biella.'},
+ {id:'spinotto',name:'Spinotto',need:['pistone'],bb:[284,366,32,32],reg:[284,366,32,32],
+  what:'Il perno che unisce il pistone alla biella.',where:'Al centro del pistone, dove arriva la biella.',why:'Lo spinotto passa dentro il pistone e la biella.'},
+ {id:'fasce',name:'Fasce elastiche',need:['pistone'],bb:[240,348,120,56],reg:[244,350,112,50],
+  what:'Anelli elastici: sigillano il pistone contro il cilindro e raschiano l\'olio dalle pareti.',where:'Intorno al pistone, nella parte alta.',why:'Le fasce stanno nelle scanalature del pistone.'},
+ {id:'cilindro',name:'Cilindro',need:['basamento','spinotto','fasce'],bb:[206,338,188,148],reg:[212,342,176,138],
+  what:'Il pistone scorre al suo interno. Le alette disperdono il calore.',where:'Sopra il basamento, attorno al pistone.',why:'Il cilindro si infila sopra il pistone già completo di biella, spinotto e fasce.'},
+ {id:'guarnizione',name:'Guarnizione testata',need:['cilindro'],bb:[222,328,156,18],reg:[226,332,148,12],
+  what:'Sigilla il giunto tra cilindro e testata: tiene dentro la pressione e non lascia uscire olio o acqua.',where:'Sul bordo superiore del cilindro.',why:'La guarnizione appoggia sul bordo del cilindro.'},
+ {id:'testata',name:'Testata',need:['guarnizione'],bb:[180,88,240,248],reg:[200,92,200,238],
+  what:'Chiude il cilindro in alto. Contiene i condotti, le valvole, gli alberi a camme e la candela.',where:'In cima, sopra la guarnizione.',why:'La testata si appoggia sulla guarnizione.'},
+ {id:'valv_asp',name:'Valvola di aspirazione',need:['testata'],bb:[244,138,48,200],reg:[252,142,32,196],
+  what:'Si apre per far entrare aria e benzina nel cilindro. Una molla la tiene chiusa.',where:'Nella testata, sul lato sinistro: il condotto di aspirazione.',why:'Le valvole si inseriscono nella testata.',
+  note:'In officina le valvole si montano nella testata prima di fissarla al motore. Qui le mettiamo dopo per vederle meglio.'},
+ {id:'valv_sc',name:'Valvola di scarico',need:['testata'],bb:[308,138,48,200],reg:[316,142,32,196],
+  what:'Si apre per far uscire i gas bruciati. Lavora molto calda.',where:'Nella testata, sul lato destro: il condotto di scarico.',why:'Le valvole si inseriscono nella testata.'},
+ {id:'camma_asp',name:'Albero a camme (aspirazione)',need:['valv_asp'],bb:[238,98,60,60],reg:[240,100,56,56],
+  what:'La sua camma spinge e apre la valvola di aspirazione al momento giusto.',where:'In alto nella testata, sopra la valvola di aspirazione.',why:'La camma lavora sopra la sua valvola.'},
+ {id:'camma_sc',name:'Albero a camme (scarico)',need:['valv_sc'],bb:[302,98,60,60],reg:[304,100,56,56],
+  what:'La sua camma spinge e apre la valvola di scarico al momento giusto.',where:'In alto nella testata, sopra la valvola di scarico.',why:'La camma lavora sopra la sua valvola.'},
+ {id:'catena',name:'Catena di distribuzione',need:['albero','camma_asp','camma_sc'],bb:[116,94,90,500],reg:[112,96,90,500],
+  what:'Collega l\'albero motore agli alberi a camme e li fa girare a metà velocità: così le valvole si aprono nei tempi giusti.',where:'Sul lato esterno della testata, dall\'albero motore fino agli alberi a camme.',why:'La catena collega l\'albero motore con gli alberi a camme.'},
+ {id:'candela',name:'Candela',need:['testata'],bb:[288,42,24,304],reg:[290,46,20,296],
+  what:'Fa scoccare la scintilla che accende la miscela compressa.',where:'Al centro della testata, tra le due valvole.',why:'La candela si avvita nella testata.'},
+ {id:'coppa',name:'Coppa dell\'olio',need:['biella'],bb:[196,660,208,92],reg:[200,664,200,80],
+  what:'Chiude il basamento da sotto e raccoglie l\'olio che lubrifica il motore.',where:'Sotto il basamento.',why:'La coppa chiude il basamento: si monta dopo albero e bielle.'}
+];
+var TBY={};TPL.forEach(function(p){TBY[p.id]=p;});
+var GLOBAL={basamento:1,albero:1,coppa:1};
+var BANKSEQ=['biella','pistone','spinotto','fasce','cilindro','guarnizione','testata','valv_asp','valv_sc','camma_asp','camma_sc','catena','candela'];
+var STROKES=[
+ ['1° tempo · Aspirazione','Il pistone scende e la valvola di aspirazione è aperta: entra la miscela di aria e benzina.'],
+ ['2° tempo · Compressione','Le valvole sono chiuse e il pistone sale: la miscela si comprime e si scalda.'],
+ ['3° tempo · Scoppio','La candela accende la miscela e l\'esplosione spinge il pistone verso il basso. È l\'unico tempo che produce lavoro.'],
+ ['4° tempo · Scarico','Il pistone risale e la valvola di scarico è aperta: i gas bruciati escono.']
+];
+
+/* ---------- i motori ---------- */
+var ENGINES=[
+ {id:'mono',name:'Monocilindrico',sub:'1 cilindro · moto piccole, scooter',order:[1],banks:[{ax:0,cyls:[1],show:1}],
+  note:'Un solo cilindro: uno scoppio ogni due giri dell\'albero. Semplice, leggero e compatto.'},
+ {id:'v2',name:'V2 a 90°',sub:'2 cilindri · moto sportive e custom',order:[1,2],fa:{1:0,2:270},banks:[{ax:-45,cyls:[1],show:1},{ax:45,cyls:[2],show:2}],
+  note:'Due cilindri a V di 90°. Gli scoppi arrivano a 270° e poi a 450°: ecco il suo suono irregolare e inconfondibile.'},
+ {id:'l3',name:'3 in linea',sub:'3 cilindri · utilitarie, moto sportive',order:[1,2,3],banks:[{ax:0,cyls:[1,2,3],show:1}],
+  note:'Tre cilindri in fila: uno scoppio ogni 240°. Compatto e leggero.'},
+ {id:'l4',name:'4 in linea',sub:'4 cilindri · il più diffuso nelle auto',order:[1,3,4,2],banks:[{ax:0,cyls:[1,2,3,4],show:1}],
+  note:'Quattro cilindri in fila: uno scoppio ogni 180°, quindi sempre un cilindro in fase di lavoro.'},
+ {id:'l5',name:'5 in linea',sub:'5 cilindri · dal suono particolare',order:[1,2,4,5,3],banks:[{ax:0,cyls:[1,2,3,4,5],show:1}],
+  note:'Cinque cilindri in fila: uno scoppio ogni 144°. Ha un sound tutto suo.'},
+ {id:'l6',name:'6 in linea',sub:'6 cilindri · BMW e altre berline',order:[1,5,3,6,2,4],banks:[{ax:0,cyls:[1,2,3,4,5,6],show:1}],
+  note:'Sei cilindri in fila: uno scoppio ogni 120°. Naturalmente equilibrato, quindi molto fluido, ma lungo.'},
+ {id:'b4',name:'Boxer 4',sub:'4 cilindri contrapposti · Subaru',order:[1,3,2,4],banks:[{ax:-90,cyls:[2,4],show:2},{ax:90,cyls:[1,3],show:1}],
+  note:'Cilindri orizzontali che si fronteggiano a 180°: i pistoni si muovono in direzioni opposte e le vibrazioni si annullano. Baricentro molto basso.'},
+ {id:'b6',name:'Boxer 6',sub:'6 cilindri contrapposti · Porsche 911',order:[1,6,2,4,3,5],banks:[{ax:-90,cyls:[4,5,6],show:4},{ax:90,cyls:[1,2,3],show:1}],
+  note:'Tre cilindri per lato, orizzontali: equilibrio eccellente e baricentro bassissimo.'},
+ {id:'v6',name:'V6 a 60°',sub:'6 cilindri · auto di media taglia',order:[1,5,3,6,2,4],banks:[{ax:-30,cyls:[1,2,3],show:1},{ax:30,cyls:[4,5,6],show:5}],
+  note:'Due bancate da 3 cilindri a 60°: molto più corto di un 6 in linea, entra facilmente nel cofano. Uno scoppio ogni 120°.'},
+ {id:'v8',name:'V8 a 90°',sub:'8 cilindri · muscle car, sportive',order:[1,8,4,3,6,5,7,2],banks:[{ax:45,cyls:[1,3,5,7],show:1},{ax:-45,cyls:[2,4,6,8],show:2}],
+  note:'Due bancate da 4 cilindri a 90°: uno scoppio ogni 90°, coppia generosa e il classico borbottio.'},
+ {id:'v10',name:'V10 a 72°',sub:'10 cilindri · supercar',order:[1,6,5,10,2,7,3,8,4,9],banks:[{ax:-36,cyls:[1,2,3,4,5],show:1},{ax:36,cyls:[6,7,8,9,10],show:6}],
+  note:'Due bancate da 5 cilindri a 72°: uno scoppio ogni 72°. Raro, potente e dal suono acuto.'},
+ {id:'v12',name:'V12 a 60°',sub:'12 cilindri · Ferrari, Lamborghini',order:[1,12,5,8,3,10,6,7,2,11,4,9],banks:[{ax:-30,cyls:[1,2,3,4,5,6],show:1},{ax:30,cyls:[7,8,9,10,11,12],show:7}],
+  note:'Due bancate da 6 cilindri a 60°: uno scoppio ogni 60°, l\'erogazione più fluida di tutte.'}
+];
+var EBY={};ENGINES.forEach(function(e){EBY[e.id]=e;});
+
+/* ---------- stato del motore scelto ---------- */
+var E=null,BK=[],PARTS=[],PI={},ORDER=[],SHUF=[],PINS=[0],FA={},MULTI=false,BOX=[0,0,600,800];
+function shuf(a){var r=a.slice(),s=7;for(var i=r.length-1;i>0;i--){s=(s*48271)%2147483647;var j=s%(i+1),t=r[i];r[i]=r[j];r[j]=t;}return r;}
+function side(B){return B.ax<0?'sinistra':'destra';}
+function rotPt(x,y,ax){var a=ax*Math.PI/180,c=Math.cos(a),s=Math.sin(a),dx=x-CX,dy=y-CY;return [CX+dx*c-dy*s,CY+dx*s+dy*c];}
+function bbG(p){
+  if(p.b<0)return p.bb.slice();
+  var B=BK[p.b],b=p.bb,pts=[[b[0],b[1]],[b[0]+b[2],b[1]],[b[0],b[1]+b[3]],[b[0]+b[2],b[1]+b[3]]],x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  pts.forEach(function(q){var x=q[0];if(p.id==='catena'&&B.mir)x=600-x;var r=rotPt(x,q[1],B.ax);x0=Math.min(x0,r[0]);x1=Math.max(x1,r[0]);y0=Math.min(y0,r[1]);y1=Math.max(y1,r[1]);});
+  return [x0,y0,x1-x0,y1-y0];
+}
+function setEngine(id){
+  E=EBY[id]||ENGINES[0];
+  var n=E.order.length;MULTI=E.banks.length>1;FA={};
+  E.order.forEach(function(c,i){FA[c]=(E.fa&&E.fa[c]!==undefined)?E.fa[c]:i*720/n;});
+  BK=E.banks.map(function(B){var ph=FA[B.show];return {ax:B.ax,cyls:B.cyls,show:B.show,ph:ph,mir:(B.ax>0&&B.ax<80),delta:mod(Math.round(B.ax-ph),360)};});
+  PINS=[];BK.forEach(function(B){if(PINS.indexOf(B.delta)<0)PINS.push(B.delta);});
+  PARTS=[];PI={};ORDER=[];
+  function add(tpl,b){
+    var key=GLOBAL[tpl.id]?tpl.id:tpl.id+'#'+b,B=b>=0?BK[b]:null;
+    var need=tpl.need.map(function(x){return GLOBAL[x]?x:x+'#'+b;});
+    var p={key:key,id:tpl.id,b:b,name:tpl.name,full:tpl.name,need:need,bb:tpl.bb.slice(),reg:tpl.reg.slice(),what:tpl.what,where:tpl.where,why:tpl.why,note:tpl.note};
+    if(B&&MULTI){p.name+=' '+(B.ax<0?'sx':'dx');p.full+=', bancata '+side(B);p.where+=' (bancata '+side(B)+')';}
+    PI[key]=p;PARTS.push(p);ORDER.push(key);return p;
+  }
+  add(TPL[0],-1);add(TBY.albero,-1);
+  BK.forEach(function(B,b){BANKSEQ.forEach(function(id){add(TBY[id],b);});});
+  var cp=add(TBY.coppa,-1);cp.need=BK.map(function(B,b){return 'biella#'+b;});
+  /* il basamento si allarga sotto ogni bancata */
+  var x0=196,y0=474,x1=404,y1=706;
+  BK.forEach(function(B){[[196,470],[404,470],[196,580],[404,580]].forEach(function(q){var r=rotPt(q[0],q[1],B.ax);x0=Math.min(x0,r[0]);x1=Math.max(x1,r[0]);y0=Math.min(y0,r[1]);y1=Math.max(y1,r[1]);});});
+  var bs=PI.basamento;bs.bb=[x0-6,y0-4,x1-x0+12,y1-y0+8];bs.reg=[x0,y0+6,x1-x0,y1-y0-10];
+  SHUF=shuf(ORDER);
+  /* riquadro totale per adattare la vista */
+  var a=1e9,b2=1e9,c=-1e9,d=-1e9;
+  PARTS.forEach(function(p){var g=bbG(p);a=Math.min(a,g[0]);b2=Math.min(b2,g[1]);c=Math.max(c,g[0]+g[2]);d=Math.max(d,g[1]+g[3]);});
+  BOX=[a-14,b2-14,c-a+28,d-b2+28];
+}
+
+/* ---------- geometria e simulazione ---------- */
+function geo(ph){var t=ph*Math.PI/180,s=Math.sin(t),c=Math.cos(t);return{phi:ph,t:t,px:CX+R*s,py:CY-R*c,wy:CY-(R*c+Math.sqrt(L*L-R*R*s*s)),liA:0,liE:0,camA:-45,camE:-315,spark:0,sgn:1};}
+function lift(ph,mid){var d=(((ph-mid+360)%720)+720)%720-360;if(Math.abs(d)>=100)return 0;return 6*(1+Math.cos(2*Math.PI*d/200));}
+
+/* ---------- stato ---------- */
+var inst={},mode='guided',sel=null,hintOn=false,errs=0,hints=0,tries={};
+var phi=0,run=false,speed=25,raf=0,lastT=0,lastStroke=-1;
+var view={x:0,y:0,k:1},best=null;
+function bestKey(){return 'banco-motore-best'+(E.id==='mono'?'':'-'+E.id);}
+function loadBest(){best=null;try{var sv=localStorage.getItem(bestKey());if(sv)best=parseInt(sv,10);}catch(e){}}
+function K(b,id){return inst[id+'#'+b];}
+function all(){return ORDER.every(function(k){return inst[k];});}
+function nextId(){for(var i=0;i<ORDER.length;i++){var k=ORDER[i];if(!inst[k]&&PI[k].need.every(function(n){return inst[n];}))return k;}return null;}
+function names(keys){return keys.map(function(k){return PI[k].full.toLowerCase();}).join(', ');}
+function nInst(){return Object.keys(inst).length;}
+
+function sim(p,b){
+  var g=geo(p),dr=!!K(b,'catena');
+  g.liA=(dr&&K(b,'camma_asp'))?lift(p,90):0;g.liE=(dr&&K(b,'camma_sc'))?lift(p,630):0;
+  g.camA=dr?(p-90)/2:-45;g.camE=dr?(p-630)/2:-315;g.sgn=BK[b].mir?-1:1;
+  return g;
+}
+function mechB(b){return !!(inst.basamento&&inst.albero&&K(b,'biella')&&K(b,'pistone')&&K(b,'spinotto')&&K(b,'cilindro'));}
+function anyMech(){return BK.some(function(B,b){return mechB(b);});}
+function flagsB(b){
+  var f={};
+  f.mech=mechB(b);
+  f.chamber=!!(K(b,'cilindro')&&K(b,'testata'));
+  f.seal=!!(K(b,'fasce')&&K(b,'guarnizione'));
+  f.intake=!!(K(b,'valv_asp')&&K(b,'camma_asp')&&K(b,'catena'));
+  f.exhaust=!!(K(b,'valv_sc')&&K(b,'camma_sc')&&K(b,'catena'));
+  f.cycle=f.chamber&&f.intake&&f.exhaust;
+  f.fire=f.cycle&&f.seal&&!!K(b,'candela');
+  return f;
+}
+function gas(g,f,b){
+  if(!(K(b,'cilindro')&&K(b,'testata')))return '';
+  var top=g.wy-34,h=top-ROOF;if(h<=0)return '';
+  var p=mod(g.phi,720),c='#6fb7ff',a=.14;
+  if(f.cycle){
+    if(p<180){c='#6fb7ff';a=.5;}
+    else if(p<360){var k=(p-180)/180;if(f.seal){c=mix('#6fb7ff','#ffb347',k);a=.5+.3*k;}else{c='#6fb7ff';a=.5-.3*k;}}
+    else if(p<540){var k2=(p-360)/180;if(f.fire){c=mix('#fff07a','#ff6a2b',Math.min(1,k2*1.6));a=.9-.55*k2;}else{c='#6fb7ff';a=.3-.15*k2;}}
+    else{var k3=(p-540)/180;c='#9aa0a6';a=.6-.35*k3;}
+  }
+  return '<rect x="242" y="'+ROOF+'" width="116" height="'+h+'" style="fill:'+c+';fill-opacity:'+a+'"/>';
+}
+
+/* ---------- disegno dei pezzi ---------- */
+var C={steel:'#6b7782',steelL:'#aeb9c4',alu:'#d3dae1',cas:'#8793a0',head:'#9ca7b3',dark:'#1d242b',out:'#2a323b',cop:'#c8793f',red:'#e0603a',blue:'#4aa3df'};
+function O(){return 'stroke:'+C.out+';stroke-width:1.6;';}
+function valve(x,lf,col){
+  var top=178+lf,sp='',i,n=7;
+  for(i=0;i<=n;i++){sp+=(i?' ':'')+((i%2)?x+11:x-11)+','+(top+i*(240-top)/n);}
+  return '<polyline points="'+sp+'" style="fill:none;stroke:#8c97a3;stroke-width:2.2"/>'+
+   '<rect x="'+(x-2)+'" y="'+(150+lf)+'" width="4" height="182" style="fill:'+C.steelL+'"/>'+
+   '<rect x="'+(x-9)+'" y="'+(top-4)+'" width="18" height="5" style="fill:#59646f"/>'+
+   '<rect x="'+(x-11)+'" y="'+(142+lf)+'" width="22" height="8" rx="2" style="fill:#3d4650"/>'+
+   '<path d="M'+(x-20)+' '+(332+lf)+'L'+(x+20)+' '+(332+lf)+'L'+(x+12)+' '+(324+lf)+'L'+(x-12)+' '+(324+lf)+'Z" style="fill:'+col+';'+O()+'"/>';
+}
+function cam(x,ang){
+  return '<g transform="translate('+x+' 128) rotate('+ang+')"><path d="M-11 10Q-7 25 0 26Q7 25 11 10Z" style="fill:#7b8794;'+O()+'"/><circle r="14" style="fill:#7b8794;'+O()+'"/><circle r="4" style="fill:'+C.dark+'"/><path d="M0 4V11" style="stroke:#d9e0e6;stroke-width:2"/></g>';
+}
+var ARM='<path d="M286 580L290 532H310L314 580Z" style="fill:#7d8995;'+O()+'"/><circle cx="300" cy="532" r="11" style="fill:#c9d2db;'+O()+'"/>';
+var DRAW={
+ basamento:function(){
+  var sh='<path d="M196 480H404V650Q404 700 354 700H246Q196 700 196 650Z"/>',dk='<circle cx="300" cy="580" r="92"/>';
+  BK.forEach(function(B){sh+='<rect transform="rotate('+B.ax+' 300 580)" x="196" y="480" width="208" height="100"/>';dk+='<rect transform="rotate('+B.ax+' 300 580)" x="242" y="476" width="116" height="60"/>';});
+  return '<g style="fill:'+C.cas+';stroke:'+C.out+';stroke-width:3.2;stroke-linejoin:round">'+sh+'</g><g style="fill:'+C.cas+';stroke:none">'+sh+'</g><g style="fill:'+C.dark+'">'+dk+'</g>';},
+ coppa:function(){return '<path d="M204 664H396L386 724Q300 748 214 724Z" style="fill:#7b8794;'+O()+'"/><path d="M224 702Q300 718 376 702" style="fill:none;stroke:#e0b04a;stroke-width:3;opacity:.85"/><circle cx="300" cy="736" r="5" style="fill:#4b555f"/>';},
+ cilindro:function(){
+  var s='<rect x="242" y="342" width="116" height="140" style="fill:'+C.dark+'"/><rect x="226" y="342" width="16" height="138" style="fill:'+C.cas+';'+O()+'"/><rect x="358" y="342" width="16" height="138" style="fill:'+C.cas+';'+O()+'"/>';
+  for(var i=0;i<8;i++){s+='<rect x="210" y="'+(352+i*16)+'" width="16" height="6" style="fill:'+C.cas+';'+O()+'"/><rect x="374" y="'+(352+i*16)+'" width="16" height="6" style="fill:'+C.cas+';'+O()+'"/>';}
+  return s;},
+ albero:function(g){
+  var ex='';
+  for(var i=1;i<PINS.length;i++){ex+='<g transform="rotate('+(PINS[i]-PINS[0])+' 300 580)">'+ARM+'</g>';}
+  return '<g transform="rotate('+(g.phi+PINS[0])+' 300 580)"><path d="M238 580A62 62 0 0 0 362 580Z" style="fill:#59646f;'+O()+'"/>'+ARM+ex+'<circle cx="300" cy="580" r="19" style="fill:#8c97a3;'+O()+'"/><circle cx="300" cy="580" r="6" style="fill:'+C.dark+'"/></g>';},
+ biella:function(g){
+  var x1=g.px,y1=g.py,x2=CX,y2=g.wy,dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len,nx=-uy,ny=ux;
+  function pt(x,y,k,w){return (x+nx*k*w).toFixed(1)+','+(y+ny*k*w).toFixed(1);}
+  return '<polygon points="'+pt(x1,y1,1,8)+' '+pt(x1,y1,-1,8)+' '+pt(x2,y2,-1,5)+' '+pt(x2,y2,1,5)+'" style="fill:#aab4be;'+O()+'"/>'+
+   '<circle cx="'+x1+'" cy="'+y1+'" r="17" style="fill:#aab4be;'+O()+'"/><circle cx="'+x1+'" cy="'+y1+'" r="11" style="fill:#c9d2db;'+O()+'"/>'+
+   '<circle cx="'+x2+'" cy="'+y2+'" r="11" style="fill:#aab4be;'+O()+'"/>';},
+ pistone:function(g){var d=g.wy-WT;return '<g transform="translate(0 '+d+')"><rect x="244" y="348" width="112" height="68" rx="3" style="fill:'+C.alu+';'+O()+'"/><rect x="250" y="352" width="100" height="5" style="fill:#eef2f5"/><circle cx="300" cy="382" r="13" style="fill:#8e99a5;'+O()+'"/></g>';},
+ spinotto:function(g){return '<circle cx="300" cy="'+g.wy+'" r="9" style="fill:#38414b;'+O()+'"/><circle cx="297" cy="'+(g.wy-3)+'" r="2.5" style="fill:#9aa6b2"/>';},
+ fasce:function(g){var d=g.wy-WT,s='<g transform="translate(0 '+d+')" style="fill:#2f3740">';
+  [354,363].forEach(function(y){s+='<rect x="244" y="'+y+'" width="9" height="5"/><rect x="347" y="'+y+'" width="9" height="5"/>';});
+  s+='<rect x="244" y="394" width="9" height="7"/><rect x="347" y="394" width="9" height="7"/></g>';return s;},
+ guarnizione:function(){return '<rect x="226" y="332" width="16" height="10" style="fill:'+C.cop+';'+O()+'"/><rect x="358" y="332" width="16" height="10" style="fill:'+C.cop+';'+O()+'"/>';},
+ testata:function(){
+  var s='<rect x="200" y="92" width="200" height="240" rx="6" style="fill:'+C.head+';'+O()+'"/>';
+  for(var i=0;i<6;i++){s+='<rect x="186" y="'+(110+i*14)+'" width="14" height="5" style="fill:'+C.head+';'+O()+'"/><rect x="400" y="'+(110+i*14)+'" width="14" height="5" style="fill:'+C.head+';'+O()+'"/>';}
+  s+='<rect x="236" y="100" width="128" height="62" rx="4" style="fill:'+C.dark+'"/>';
+  s+='<rect x="257" y="150" width="22" height="182" style="fill:'+C.dark+'"/><rect x="321" y="150" width="22" height="182" style="fill:'+C.dark+'"/>';
+  s+='<path d="M200 226H246Q268 226 268 250" style="fill:none;stroke:'+C.dark+';stroke-width:22"/><path d="M400 226H354Q332 226 332 250" style="fill:none;stroke:'+C.dark+';stroke-width:22"/>';
+  s+='<rect x="294" y="100" width="12" height="232" style="fill:'+C.dark+'"/>';
+  return s;},
+ valv_asp:function(g){return valve(268,g.liA,C.blue);},
+ valv_sc:function(g){return valve(332,g.liE,C.red);},
+ camma_asp:function(g){return cam(268,g.camA);},
+ camma_sc:function(g){return cam(332,g.camE);},
+ candela:function(g){
+  var s='<rect x="296" y="56" width="8" height="54" rx="2" style="fill:#f1f3f5;'+O()+'"/><rect x="297" y="46" width="6" height="10" style="fill:#7b8794"/><rect x="293" y="110" width="14" height="14" style="fill:#7b8794;'+O()+'"/><rect x="295" y="124" width="10" height="210" style="fill:#8c97a3"/><rect x="298.5" y="334" width="3" height="9" style="fill:#2f3740"/><path d="M295 334V342H300" style="fill:none;stroke:#2f3740;stroke-width:2"/>';
+  if(g.spark>0)s+='<g style="opacity:'+g.spark+'"><circle cx="300" cy="340" r="'+(8+10*g.spark)+'" style="fill:#fff6a8"/><path d="M300 332L306 338L298 342L304 350" style="fill:none;stroke:#ffd400;stroke-width:3"/></g>';
+  return s;},
+ catena:function(g){
+  var sg=g.sgn||1,off=-(15*g.t)*sg,s='';
+  s+='<rect x="150" y="575" width="150" height="10" style="fill:#7d8995;'+O()+'"/><rect x="150" y="123" width="118" height="10" style="fill:#7d8995;'+O()+'"/>';
+  s+='<path d="M135 580L120 128A30 30 0 0 1 180 128L165 580A15 15 0 0 1 135 580Z" style="fill:none;stroke:#2a323b;stroke-width:4;stroke-dasharray:5 3;stroke-dashoffset:'+off.toFixed(1)+'"/>';
+  s+='<g transform="translate(150 580) rotate('+(sg*g.phi)+')"><circle r="14" style="fill:#59646f;'+O()+'"/><circle r="14" style="fill:none;stroke:#cdd5dc;stroke-width:3;stroke-dasharray:4 4"/><circle r="3" style="fill:'+C.dark+'"/></g>';
+  s+='<g transform="translate(150 128) rotate('+(sg*g.phi/2)+')"><circle r="29" style="fill:#59646f;'+O()+'"/><circle r="29" style="fill:none;stroke:#cdd5dc;stroke-width:3;stroke-dasharray:4 4"/><circle r="4" style="fill:'+C.dark+'"/><path d="M0 -6V-20" style="stroke:#e6ebef;stroke-width:3"/></g>';
+  return s;}
+};
+function arrows(g,f){
+  if(!f.cycle)return '';var s='';
+  if(g.liA>2)s+='<g style="opacity:'+Math.min(1,g.liA/8)+';fill:none;stroke:#2c8fe0;stroke-width:3;stroke-linecap:round;stroke-linejoin:round"><path d="M204 226H252"/><path d="M244 218L254 226L244 234"/></g>';
+  if(g.liE>2)s+='<g style="opacity:'+Math.min(1,g.liE/8)+';fill:none;stroke:#8d949b;stroke-width:3;stroke-linecap:round;stroke-linejoin:round"><path d="M348 226H396"/><path d="M388 218L398 226L388 234"/></g>';
+  return s;
+}
+function grp(b,inner){return inner?'<g transform="rotate('+BK[b].ax+' 300 580)">'+inner+'</g>':'';}
+function drawEngine(ph,live){
+  var s='',G=[],F=[];
+  BK.forEach(function(B,b){
+    G[b]=sim(ph-B.ph,b);F[b]=flagsB(b);
+    if(live&&F[b].fire){var p=mod(ph-B.ph,720),d=Math.abs(p-358);if(d<12)G[b].spark=1-d/12;}
+  });
+  if(inst.basamento)s+=DRAW.basamento();
+  if(inst.coppa)s+=DRAW.coppa();
+  BK.forEach(function(B,b){var t='';if(K(b,'cilindro'))t+=DRAW.cilindro();t+=gas(G[b],F[b],b);s+=grp(b,t);});
+  if(inst.albero)s+=DRAW.albero({phi:ph});
+  BK.forEach(function(B,b){
+    var t='',g=G[b];
+    ['biella','pistone','fasce','spinotto','guarnizione','testata','valv_asp','valv_sc','camma_asp','camma_sc','candela'].forEach(function(id){if(K(b,id))t+=DRAW[id](g);});
+    t+=arrows(g,F[b]);
+    s+=grp(b,t);
+    if(K(b,'catena'))s+=grp(b,(B.mir?'<g transform="translate(600 0) scale(-1 1)">':'<g>')+DRAW.catena(g)+'</g>');
+  });
+  return s;
+}
+function ghost(key){
+  var p=PI[key],b=p.bb,rect='<rect x="'+(b[0]-3)+'" y="'+(b[1]-3)+'" width="'+(b[2]+6)+'" height="'+(b[3]+6)+'" rx="6" style="fill:none;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:7 5;pointer-events:none"/>';
+  if(p.b<0){
+    var gg=geo(0);return '<g style="opacity:.5;pointer-events:none">'+DRAW[p.id](gg)+'</g>'+rect;
+  }
+  var B=BK[p.b],g=sim(-B.ph,p.b),inner='<g style="opacity:.5;pointer-events:none">'+DRAW[p.id](g)+'</g>'+rect;
+  if(p.id==='catena'&&B.mir)inner='<g transform="translate(600 0) scale(-1 1)">'+inner+'</g>';
+  return grp(p.b,inner);
+}
+function render(){
+  var live=(mode==='prova'&&anyMech());
+  var s=drawEngine(live?phi:0,live);
+  if(mode!=='prova'&&sel&&(mode==='guided'||hintOn)&&!inst[sel])s+=ghost(sel);
+  $('eng').innerHTML=s;
+}
+function icon(key){
+  var p=PI[key],b=p.bb,g=geo(0),pad=6;
+  return '<svg viewBox="'+(b[0]-pad)+' '+(b[1]-pad)+' '+(b[2]+2*pad)+' '+(b[3]+2*pad)+'" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+DRAW[p.id](g)+'</svg>';
+}
+
+/* ---------- messaggi e interfaccia ---------- */
+function setMsg(h,k){var m=$('msg');m.className='msg'+(k?' '+k:'');m.innerHTML=h;}
+var flash='';
+function takeFlash(){var f=flash;flash='';return f;}
+function intro(){return MULTI||E.order.length>1?'':'';}
+function guidedMsg(){
+  var id=nextId(),fl=takeFlash();
+  if(!id){setMsg(fl+(fl?'<br>':'')+'<b>Motore completo.</b> Tocca <b>Provalo</b> per farlo girare e vedere i quattro tempi.','ok');return;}
+  var p=PI[id],k=ORDER.indexOf(id)+1;
+  setMsg(fl+(fl?'<br>':'')+'<b>Passo '+k+' di '+ORDER.length+' · '+esc(p.full)+'</b><br>'+esc(p.what)+' '+esc(p.where)+' Tocca l\'ombra tratteggiata per montarlo.'+(p.note?'<small>'+esc(p.note)+'</small>':''),fl?'ok':'');
+}
+function challengeMsg(){
+  var fl=takeFlash();
+  if(all()){var sc=errs+hints;setMsg(fl+(fl?'<br>':'')+'<b>Motore montato.</b> Errori: '+errs+', suggerimenti: '+hints+'.'+(best!==null?' Il tuo record: '+best+'.':'')+'<small>Tocca Provalo per farlo girare.</small>','ok');return;}
+  if(sel)setMsg(fl+(fl?'<br>':'')+'<b>'+esc(PI[sel].full)+'</b><br>'+esc(PI[sel].what)+'<small>Tocca sul motore il punto dove va montato.</small>',fl?'ok':'');
+  else setMsg(fl+(fl?'<br>':'')+'<b>Sfida · '+esc(E.name)+'.</b> Scegli un pezzo dal vassoio e montalo al posto giusto, nell\'ordine giusto. Nessuna ombra: ti aiuto solo se sbagli. Montati '+nInst()+' su '+ORDER.length+'.',fl?'ok':'');
+}
+function strokeOf(ph,b){return Math.floor(mod(ph-BK[b].ph,720)/180);}
+function stroke(){return strokeOf(phi,0);}
+function bankLabel(b){return MULTI?'Bancata '+side(BK[b])+': ':'';}
+function diagB(b){
+  var f=flagsB(b),d=[],pre=bankLabel(b);
+  if(!K(b,'testata'))d.push(pre+'senza testata la camera di scoppio è aperta: non c\'è compressione.');
+  if(!K(b,'guarnizione'))d.push(pre+'senza guarnizione la pressione fugge dal giunto tra cilindro e testata.');
+  if(!K(b,'fasce'))d.push(pre+'senza fasce la pressione fugge lungo il pistone: la compressione è debole.');
+  if(!K(b,'catena'))d.push(pre+'senza catena gli alberi a camme restano fermi: le valvole non si aprono mai.');
+  if(K(b,'testata')){
+    if(!K(b,'valv_asp'))d.push(pre+'senza valvola di aspirazione non entra miscela.');else if(!K(b,'camma_asp'))d.push(pre+'senza albero a camme di aspirazione la valvola non si apre.');
+    if(!K(b,'valv_sc'))d.push(pre+'senza valvola di scarico i gas bruciati restano dentro.');else if(!K(b,'camma_sc'))d.push(pre+'senza albero a camme di scarico la valvola non si apre.');
+    if(!K(b,'candela'))d.push(pre+'senza candela non c\'è scintilla: nessuno scoppio.');
+  }
+  return d;
+}
+function diag(){
+  if(!anyMech()){
+    var bestMiss=null;
+    BK.forEach(function(B,b){var m=['basamento','albero','biella#'+b,'pistone#'+b,'spinotto#'+b,'cilindro#'+b].filter(function(k){return !inst[k];});if(!bestMiss||m.length<bestMiss.length)bestMiss=m;});
+    return ['Il motore non può girare: manca '+names(bestMiss)+'.'];
+  }
+  var d=[];
+  BK.forEach(function(B,b){if(mechB(b))d=d.concat(diagB(b));else d.push(bankLabel(b)+'manca almeno un pezzo meccanico (biella, pistone, spinotto o cilindro): questa bancata non lavora.');});
+  if(!inst.coppa)d.push('Senza coppa l\'olio non si raccoglie e il motore si usurerebbe subito.');
+  return d;
+}
+function firingText(){return E.order.join('‑');}
+function runMsg(){
+  var d=diag(),s=stroke(),h='';
+  if(!anyMech()){setMsg('<b>'+esc(d[0])+'</b><small>Torna a Guidato o Sfida, oppure tocca Monta tutto.</small>','warn');return;}
+  h='<b>'+STROKES[s][0]+(E.order.length>1?' · cilindro '+BK[0].show:'')+'</b><br>'+STROKES[s][1];
+  if(E.order.length>1){
+    var per=BK[0].cyls.length;
+    h+='<small>Il disegno mostra '+(MULTI?'un cilindro per bancata':'un solo cilindro')+(per>1?' (gli altri '+(per-1)+' della fila sono identici e stanno dietro)':'')+'. Gli altri cilindri fanno gli stessi quattro tempi, ma sfasati: guarda i pallini qui sotto. Ordine di accensione usato: '+firingText()+' (varia da costruttore a costruttore).</small>';
+  }
+  if(d.length)h+='<small>⚠ '+d.map(esc).join(' ')+'</small>';else h+='<small>Tutto montato: il motore funziona. Un ciclo completo sono 2 giri dell\'albero motore.</small>';
+  setMsg(h,d.length?'warn':'');
+}
+var fireSig='';
+function fireUpdate(force){
+  var el=$('fire');if(el.hidden)return;
+  var sig='',h='',shown={};
+  BK.forEach(function(B){shown[B.show]=1;});
+  E.order.forEach(function(c){var st=Math.floor(mod(phi-FA[c],720)/180);sig+=st;});
+  if(!force&&sig===fireSig)return;fireSig=sig;
+  h='<span>Ordine di accensione:</span>';
+  E.order.forEach(function(c,i){h+='<span class="dot s'+sig.charAt(i)+(shown[c]?' shown':'')+'">'+c+'</span>';});
+  h+='<span style="flex-basis:100%">azzurro aspira · giallo comprime · arancio scoppia · grigio scarica · contorno blu = cilindro disegnato</span>';
+  el.innerHTML=h;
+}
+function setTL(){
+  var tl=$('tl').children,s=stroke(),o=[];
+  BK.forEach(function(B,b){if(b>0)o.push(strokeOf(phi,b));});
+  for(var j=0;j<4;j++)tl[j].className=(j===s)?'cur':(o.indexOf(j)>=0?'cur2':'');
+}
+function buildAssembly(){
+  var tray=$('tray'),act=$('act'),rem=(mode==='challenge'?SHUF:ORDER).filter(function(k){return !inst[k];}),nx=nextId(),h='';
+  if(!rem.length){
+    tray.innerHTML='';act.innerHTML='<button class="btn on grow" data-a="prova">Provalo</button>';return;
+  }
+  rem.forEach(function(k){
+    var lock=(mode==='guided'&&k!==nx);
+    h+='<button class="tile'+(sel===k?' sel':'')+'" data-p="'+k+'"'+(lock?' disabled':'')+'>'+icon(k)+'<span>'+esc(PI[k].name)+'</span></button>';
+  });
+  tray.innerHTML=h;
+  if(mode==='guided')act.innerHTML='<button class="btn on grow" data-a="help">Aiutami: monta questo pezzo</button>';
+  else act.innerHTML='<button class="btn grow" data-a="hint"'+(sel?'':' disabled')+'>Suggerimento (+1)</button>';
+  var el=tray.querySelector('.sel');if(el&&el.scrollIntoView)try{el.scrollIntoView({block:'nearest',inline:'nearest'});}catch(e){}
+}
+function ui(){
+  var seg=$('modes').children;for(var i=0;i<seg.length;i++)seg[i].className='btn'+(seg[i].dataset.m===mode?' on':'');
+  var isRun=mode==='prova';
+  $('assembly').hidden=isRun;$('run').hidden=!isRun;
+  $('fire').hidden=!(isRun&&E.order.length>1);
+  if(isRun){
+    $('bPlay').textContent=run?'Pausa':'Avvia';
+    $('an').value=Math.round(mod(phi,720));$('anv').textContent=Math.round(mod(phi,720))+'°';
+    $('spv').textContent=speed<30?'Lenta':speed<70?'Media':'Veloce';
+    setTL();fireUpdate(true);if(!run)tr=0;setTach(run?tr:0);
+    runMsg();
+  }else{
+    setTach(0);
+    if(mode==='guided'){sel=nextId();}
+    buildAssembly();
+    if(mode==='guided')guidedMsg();else challengeMsg();
+  }
+  render();
+}
+
+/* ---------- montaggio ---------- */
+function inRect(x,y,r,pad){return x>=r[0]-pad&&x<=r[0]+r[2]+pad&&y>=r[1]-pad&&y<=r[1]+r[3]+pad;}
+function toLocal(p,x,y){
+  if(p.b<0)return [x,y];
+  var B=BK[p.b],a=-B.ax*Math.PI/180,dx=x-CX,dy=y-CY,c=Math.cos(a),s=Math.sin(a);
+  var lx=CX+dx*c-dy*s,ly=CY+dx*s+dy*c;
+  if(p.id==='catena'&&B.mir)lx=600-lx;
+  return [lx,ly];
+}
+function place(key){
+  inst[key]=true;hintOn=false;sel=null;
+  var p=PI[key];
+  if(mode==='guided'){sel=nextId();}
+  if(all()){
+    if(mode==='challenge'){var sc=errs+hints;if(best===null||sc<best){best=sc;try{localStorage.setItem(bestKey(),String(sc));}catch(e){}}}
+  }
+  flash='<b>Montato: '+esc(p.full)+'.</b>';
+  ui();
+}
+function fail(text){if(mode==='challenge')errs++;setMsg(text+(mode==='challenge'?'<small>Errori: '+errs+'</small>':''),'bad');}
+function tryPlace(x,y){
+  var p=PI[sel];if(!p)return;
+  var miss=p.need.filter(function(n){return !inst[n];});
+  if(miss.length){fail('<b>Non ancora.</b> Prima serve: '+esc(names(miss))+'. '+esc(p.why));return;}
+  var q=toLocal(p,x,y);
+  if(!inRect(q[0],q[1],p.reg,16)){
+    tries[sel]=(tries[sel]||0)+1;
+    fail('<b>Non va qui.</b> '+(mode==='guided'||tries[sel]>=2?esc(p.where):'Pensa a cosa fa: '+esc(p.what)));return;
+  }
+  place(sel);
+}
+function identify(x,y){
+  var b2=null;
+  PARTS.forEach(function(p){if(!inst[p.key])return;var q=toLocal(p,x,y);if(inRect(q[0],q[1],p.reg,4)){var a=p.reg[2]*p.reg[3];if(!b2||a<b2.a)b2={p:p,a:a};}});
+  if(b2)setMsg('<b>'+esc(b2.p.full)+'</b><br>'+esc(b2.p.what));
+}
+function onTap(cx,cy){
+  var r=$('cv').getBoundingClientRect(),x=(cx-r.left-view.x)/view.k,y=(cy-r.top-view.y)/view.k;
+  if(mode!=='prova'&&sel&&!inst[sel])tryPlace(x,y);else identify(x,y);
+}
+
+var tr=0;
+function setTach(r){
+  var t=$('tach'),off=(mode!=='prova');if(off)t.setAttribute('hidden','');else t.removeAttribute('hidden');if(off)return;
+  r=clamp(r,0,8000);$('tn').setAttribute('transform','rotate('+(-120+r/8000*240).toFixed(1)+' 60 60)');$('trpm').textContent=Math.round(r/10)*10;
+}
+function rpmTarget(){return run?800+speed*62:0;}
+/* ---------- prova ---------- */
+function tick(ts){
+  if(!run)return;
+  var dt=Math.min(.05,(ts-lastT)/1000);lastT=ts;
+  phi=(phi+dt*(30+speed*6.5))%720;
+  render();fireUpdate(false);tr+=(rpmTarget()-tr)*Math.min(1,dt*6);setTach(tr);
+  var s=stroke();if(s!==lastStroke){lastStroke=s;ui();}else{$('an').value=Math.round(phi);$('anv').textContent=Math.round(phi)+'°';setTL();}
+  raf=requestAnimationFrame(tick);
+}
+function play(on){
+  if(on&&!anyMech()){setMsg('<b>'+esc(diag()[0])+'</b><small>Torna a Guidato o Sfida, oppure tocca Monta tutto.</small>','warn');return;}
+  run=on;cancelAnimationFrame(raf);
+  if(run){lastT=performance.now();lastStroke=-1;raf=requestAnimationFrame(tick);}
+  ui();
+}
+function setMode(m){
+  if(m===mode)return;
+  play(false);mode=m;sel=null;hintOn=false;lastStroke=-1;ui();
+  if(m==='prova'&&anyMech())runMsg();
+}
+function reset(){play(false);inst={};errs=0;hints=0;tries={};sel=null;hintOn=false;phi=0;ui();}
+
+/* ---------- scelta del motore ---------- */
+function miniIcon(e){
+  var s='<svg viewBox="0 0 56 46" aria-hidden="true"><circle cx="28" cy="34" r="6" style="fill:var(--muted)"/>';
+  e.banks.forEach(function(B){s+='<rect x="22" y="6" width="12" height="26" rx="2" transform="rotate('+B.ax+' 28 34)" style="fill:var(--accent);opacity:.85"/>';});
+  return s+'</svg>';
+}
+function buildPicker(){
+  var h='';
+  ENGINES.forEach(function(e){
+    h+='<button class="erow'+(e.id===E.id?' cur':'')+'" data-e="'+e.id+'">'+miniIcon(e)+'<span><b>'+esc(e.name)+'</b><small>'+esc(e.sub)+'</small></span></button>';
+  });
+  $('plist').innerHTML=h;
+}
+function chooseEngine(id){
+  play(false);setEngine(id);
+  try{localStorage.setItem('banco-motore-eng',id);}catch(e){}
+  inst={};errs=0;hints=0;tries={};sel=null;hintOn=false;phi=0;mode='guided';flash='';
+  loadBest();
+  $('engName').textContent='Motore: '+E.name;
+  $('cv').setAttribute('aria-label','Sezione di un motore: '+E.name);
+  ui();fit();
+  setMsg('<b>'+esc(E.name)+'</b><br>'+esc(E.note)+'<small>'+(E.order.length>1?'Ordine di accensione usato qui: '+firingText()+' (nei motori veri varia da costruttore a costruttore). ':'')+'Ora montiamolo pezzo per pezzo.</small>');
+  var m2=null;
+}
+
+/* ---------- vista: zoom e trascinamento ---------- */
+var cv=$('cv'),ptrs=new Map(),drag=null,pinch=null;
+function applyView(){$('world').setAttribute('transform','translate('+view.x+' '+view.y+') scale('+view.k+')');}
+function drawStand(){var x0=BOX[0]+30,w=BOX[2]-60,y=BOX[1]+BOX[3]-12,s='<rect x="'+x0+'" y="'+y+'" width="'+w+'" height="14" rx="4" style="fill:#59646f;stroke:#2a323b;stroke-width:1.6"/>';[x0+16,x0+w-40].forEach(function(lx){s+='<rect x="'+lx+'" y="'+(y+14)+'" width="24" height="70" style="fill:#6b7782;stroke:#2a323b;stroke-width:1.6"/><rect x="'+(lx-14)+'" y="'+(y+84)+'" width="52" height="10" rx="3" style="fill:#3d4650"/>';});$('stand').innerHTML=s;}
+function fit(){
+  drawStand();
+  var W=cv.clientWidth,H=cv.clientHeight,bx=BOX[0],by=BOX[1],bw=BOX[2],bh=BOX[3]+96;
+  var k=clamp(Math.min(W/bw,H/bh),.1,3);view.k=k;view.x=W/2-(bx+bw/2)*k;view.y=H/2-(by+bh/2)*k;applyView();
+}
+function zoomAt(f,cx,cy){
+  var r=cv.getBoundingClientRect(),k=clamp(view.k*f,.1,4),wx=(cx-r.left-view.x)/view.k,wy=(cy-r.top-view.y)/view.k;
+  view.k=k;view.x=cx-r.left-wx*k;view.y=cy-r.top-wy*k;applyView();
+}
+cv.addEventListener('pointerdown',function(e){
+  e.preventDefault();try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size>=2){var v=Array.from(ptrs.values()),a=v[0],b=v[1];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,v:{x:view.x,y:view.y,k:view.k}};drag=null;return;}
+  drag={sx:e.clientX,sy:e.clientY,lx:e.clientX,ly:e.clientY,moved:false};
+});
+cv.addEventListener('pointermove',function(e){
+  if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&ptrs.size>=2){
+    var v=Array.from(ptrs.values()),a=v[0],b=v[1],d=Math.hypot(a.x-b.x,a.y-b.y)||1,cx=(a.x+b.x)/2,cy=(a.y+b.y)/2,r=cv.getBoundingClientRect();
+    var k=clamp(pinch.v.k*d/pinch.d,.1,4),wx=(pinch.cx-r.left-pinch.v.x)/pinch.v.k,wy=(pinch.cy-r.top-pinch.v.y)/pinch.v.k;
+    view.k=k;view.x=cx-r.left-wx*k;view.y=cy-r.top-wy*k;applyView();return;
+  }
+  if(!drag)return;
+  if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6)return;
+  drag.moved=true;view.x+=e.clientX-drag.lx;view.y+=e.clientY-drag.ly;drag.lx=e.clientX;drag.ly=e.clientY;applyView();
+});
+function endP(e){
+  if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
+  if(pinch){if(ptrs.size<2)pinch=null;return;}
+  var d=drag;drag=null;if(d&&!d.moved&&e.type==='pointerup')onTap(e.clientX,e.clientY);
+}
+cv.addEventListener('pointerup',endP);cv.addEventListener('pointercancel',endP);
+cv.addEventListener('wheel',function(e){e.preventDefault();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);},{passive:false});
+$('zIn').onclick=function(){var r=cv.getBoundingClientRect();zoomAt(1.25,r.left+r.width/2,r.top+r.height/2);};
+$('zOut').onclick=function(){var r=cv.getBoundingClientRect();zoomAt(1/1.25,r.left+r.width/2,r.top+r.height/2);};
+$('zFit').onclick=fit;
+window.addEventListener('resize',fit);
+if(window.ResizeObserver)new ResizeObserver(function(){fit();}).observe($('stage'));
+
+/* ---------- comandi ---------- */
+$('modes').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setMode(b.dataset.m);});
+$('bReset').onclick=reset;
+$('bEng').onclick=function(){buildPicker();$('pick').hidden=false;};
+$('pX').onclick=function(){$('pick').hidden=true;};
+$('pick').addEventListener('click',function(e){
+  if(e.target===$('pick')){$('pick').hidden=true;return;}
+  var b=e.target.closest('.erow');if(!b)return;
+  $('pick').hidden=true;
+  if(b.dataset.e!==E.id||nInst()>0)chooseEngine(b.dataset.e);
+});
+$('tray').addEventListener('click',function(e){
+  var b=e.target.closest('.tile');if(!b||b.disabled)return;
+  sel=b.dataset.p;hintOn=false;ui();
+  if(mode==='challenge')challengeMsg();
+});
+$('act').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;var a=b.dataset.a;
+  if(a==='prova'){setMode('prova');}
+  else if(a==='help'&&sel){place(sel);}
+  else if(a==='hint'&&sel){hints++;hintOn=true;ui();setMsg('<b>Suggerimento</b><br>'+esc(PI[sel].where)+' Ho mostrato l\'ombra.','warn');}
+});
+$('bPlay').onclick=function(){play(!run);};
+$('bAll').onclick=function(){play(false);ORDER.forEach(function(i){inst[i]=true;});ui();};
+$('bClear').onclick=function(){play(false);inst={};phi=0;ui();};
+$('sp').oninput=function(){speed=parseInt(this.value,10);$('spv').textContent=speed<30?'Lenta':speed<70?'Media':'Veloce';};
+$('an').oninput=function(){if(run)play(false);if(!anyMech()){setMsg('<b>'+esc(diag()[0])+'</b>','warn');return;}phi=parseInt(this.value,10);lastStroke=stroke();render();fireUpdate(false);$('anv').textContent=Math.round(phi)+'°';setTL();runMsg();};
+
+var startId='mono';try{var sv=localStorage.getItem('banco-motore-eng');if(sv&&EBY[sv])startId=sv;}catch(e){}
+setEngine(startId);loadBest();
+$('engName').textContent='Motore: '+E.name;
+ui();
+requestAnimationFrame(fit);
+})();
+
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
